@@ -10,7 +10,7 @@ namespace JSON_Beef.Types
 		private Dictionary<String, Variant> _dictionary = new .();
 		private Dictionary<String, JSON_TYPES> _types = new .();
 
-		public this() {}
+		public this() { }
 
 		public this(JSONObject obj)
 		{
@@ -342,7 +342,7 @@ namespace JSON_Beef.Types
 						let numStr = scope String();
 						let numInfo = scope NumberFormatInfo();
 						numInfo.NumberDecimalDigits = 10;
-
+						numInfo.NumberGroupSeparator = "";
 						dest.ToString(numStr, "N", numInfo);
 						tempStr.AppendF("{}", numStr);
 					case .LITERAL:

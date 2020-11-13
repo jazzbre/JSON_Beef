@@ -9,7 +9,7 @@ namespace JSON_Beef.Serialization
 {
 	public class JSONSerializer
 	{
-		public static Result<JSONObject> Serialize<T>(Object object) where T: JSONObject
+		public static Result<JSONObject> Serialize<T>(Object object) where T : JSONObject
 		{
 			if (object == null)
 			{
@@ -17,30 +17,70 @@ namespace JSON_Beef.Serialization
 			}
 
 			let json = new JSONObject();
-			let type = object.GetType();
-			var fields = type.GetFields();
+			var type = object.GetType();
+			var classFullName = scope String();
+			type.GetFullName(classFullName);
+			json.Add<String>(JSONUtil.classNameTag, classFullName);
 
-			SerializeObjectBaseTypeInternal(object, json);
-
-			for (var field in fields)
+			while (type != null)
 			{
-				if (AttributeChecker.ShouldIgnore(field))
+				var fields = type.GetFields();
+				for (var field in fields)
 				{
-					continue;
+					if (AttributeChecker.ShouldIgnore(field))
+					{
+						continue;
+					}
+
+					let res = SerializeObjectInternal(object, type, field, json);
+
+					if (res == .Err)
+					{
+						return .Err;
+					}
 				}
 
-				let res = SerializeObjectInternal(object, field, json);
-
-				if (res == .Err)
-				{
-					return .Err;
-				}
+				type = type.BaseType;
 			}
 
 			return .Ok(json);
 		}
 
-		public static Result<JSONArray> Serialize<T>(Object from) where T: JSONArray
+		public static Result<JSONObject> Serialize<T>(Variant variant) where T : JSONObject
+		{
+			let json = new JSONObject();
+			var type = variant.VariantType;
+
+			while (type != null)
+			{
+				var fields = type.GetFields();
+				for (var field in fields)
+				{
+					if (FieldHelper.HasFlag(field, .Static))
+					{
+						continue;
+					}
+					if (AttributeChecker.ShouldIgnore(field))
+					{
+						continue;
+					}
+
+					let res = SerializeStructInternal(variant, type, field, json);
+
+					if (res == .Err)
+					{
+						return .Err;
+					}
+				}
+
+				type = type.BaseType;
+			}
+
+			return .Ok(json);
+		}
+
+
+		public static Result<JSONArray> Serialize<T>(Object from) where T : JSONArray
 		{
 			var object = from;
 			if (!TypeChecker.IsTypeList(object) || (object == null))
@@ -129,56 +169,13 @@ namespace JSON_Beef.Serialization
 			return .Ok(jsonArray);
 		}
 
-		public static Result<String> Serialize<T>(Object from) where T: String
+		private static Result<void> SerializeFieldInternal(Variant fieldVariant, String fieldName, Type _fieldType, JSONObject json)
 		{
-			var object = from;
-			let str = new String();
-
-			if (TypeChecker.IsTypeList(object))
+			var fieldType = _fieldType;
+			if (fieldType.IsEnum)
 			{
-				var obj = object;
-				let res = Serialize<JSONArray>(obj);
-
-				if (res == .Err)
-				{
-					delete str;
-					return .Err;
-				}
-
-				res.Value.ToString(str);
-				delete res.Value;
+				fieldType = fieldType.UnderlyingType;
 			}
-			else
-			{
-				let res = Serialize<JSONObject>(object);
-
-				if (res == .Err)
-				{
-					delete str;
-					return .Err;
-				}
-
-				res.Value.ToString(str);
-				delete res.Value;
-			}
-			return .Ok(str);
-		}
-
-		private static Result<void> SerializeObjectInternal(Object object, FieldInfo field, JSONObject json)
-		{
-			let fieldName = scope String(field.Name);
-			let fieldType = field.FieldType;
-			Variant fieldVariant;
-
-			if (FieldHelper.HasFlag(field, .Static))
-			{
-				fieldVariant = field.GetValue(null).Get();
-			}
-			else
-			{
-				fieldVariant = field.GetValue(object).Get();
-			}
-
 			if (fieldType.IsPrimitive)
 			{
 				switch (fieldType)
@@ -219,6 +216,25 @@ namespace JSON_Beef.Serialization
 					return .Err;
 				}
 			}
+			else if (fieldType.IsStruct)
+			{
+				if (!fieldVariant.HasValue)
+				{
+					json.Add<Object>(fieldName, null);
+					return .Ok;
+				}
+
+				let res = Serialize<JSONObject>(fieldVariant);
+
+				if (res == .Err)
+				{
+					delete json;
+					return .Err;
+				}
+
+				json.Add<JSONObject>(fieldName, res.Value);
+				delete res.Value;
+			}
 			else if (fieldType.IsObject)
 			{
 				if (!fieldVariant.HasValue)
@@ -234,8 +250,6 @@ namespace JSON_Beef.Serialization
 					json.Add<Object>(fieldName, null);
 					return .Ok;
 				}
-
-				SerializeObjectBaseTypeInternal(fieldValue, json);
 
 				if (TypeChecker.IsTypeList(fieldValue))
 				{
@@ -273,105 +287,68 @@ namespace JSON_Beef.Serialization
 			return .Ok;
 		}
 
-		private static Result<void> SerializeObjectBaseTypeInternal(Object object, JSONObject json)
+		public static Result<String> Serialize<T>(Object from) where T : String
 		{
-			let type = object.GetType();
-			let baseType = type.BaseType;
+			var object = from;
+			let str = new String();
 
-			// It is not an error to have the same base type as the current type.
-			// It only tells that we arrived at the top of the inheritence chain.
-			// So I exit now to break any infinite recursion loop.
-			if (type == baseType)
+			if (TypeChecker.IsTypeList(object))
 			{
-				return .Ok;
+				var obj = object;
+				let res = Serialize<JSONArray>(obj);
+
+				if (res == .Err)
+				{
+					delete str;
+					return .Err;
+				}
+
+				res.Value.ToString(str);
+				delete res.Value;
+			}
+			else
+			{
+				let res = Serialize<JSONObject>(object);
+
+				if (res == .Err)
+				{
+					delete str;
+					return .Err;
+				}
+
+				res.Value.ToString(str);
+				delete res.Value;
+			}
+			return .Ok(str);
+		}
+
+		private static Result<void> SerializeObjectInternal(Object object, Type type, FieldInfo field, JSONObject json)
+		{
+			let fieldName = scope String(field.Name);
+			let fieldType = field.FieldType;
+			Variant fieldVariant;
+
+			if (FieldHelper.HasFlag(field, .Static))
+			{
+				fieldVariant = field.GetValue(null).Get();
+			}
+			else
+			{
+				fieldVariant = field.GetValue(object).Get();
 			}
 
-			let fields = baseType.GetFields();
+			return SerializeFieldInternal(fieldVariant, fieldName, fieldType, json);
+		}
 
-			for (var field in fields)
-			{
-				if (AttributeChecker.ShouldIgnore(field))
-				{
-					continue;
-				}
+		private static Result<void> SerializeStructInternal(Variant variant, Type type, FieldInfo field, JSONObject json)
+		{
+			let fieldName = scope String(field.Name);
+			let fieldType = field.FieldType;
+			Variant fieldVariant;
 
-				let fieldName = scope String(field.Name);
-				let fieldVariant = field.GetValue(object).Get();
-				let fieldVariantType = fieldVariant.VariantType;
-				var fieldValue = fieldVariant.Get<Object>();
+			fieldVariant = field.GetValue(variant).Get();
 
-				SerializeObjectBaseTypeInternal(fieldValue, json);
-
-				if (fieldValue == null)
-				{
-					json.Add<Object>(fieldName, null);
-				}
-				else if (TypeChecker.IsTypeList(fieldValue))
-				{
-					let res = Serialize<JSONArray>(fieldValue);
-
-					if (res == .Err)
-					{
-						return .Err;
-					}
-
-					json.Add<JSONArray>(fieldName, res.Value);
-					delete res.Value;
-				}
-				else
-				{
-					switch (fieldVariantType)
-					{
-					case typeof(String):
-						json.Add<String>(fieldName, (String)fieldValue);
-					case typeof(int):
-						json.Add<int>(fieldName, (int)fieldValue);
-					case typeof(int8):
-						json.Add<int8>(fieldName, (int8)fieldValue);
-					case typeof(int16):
-						json.Add<int16>(fieldName, (int16)fieldValue);
-					case typeof(int32):
-						json.Add<int32>(fieldName, (int32)fieldValue);
-					case typeof(int64):
-						json.Add<int64>(fieldName, (int64)fieldValue);
-					case typeof(uint):
-						json.Add<uint>(fieldName, (uint)fieldValue);
-					case typeof(uint8):
-						json.Add<uint8>(fieldName, (uint8)fieldValue);
-					case typeof(uint16):
-						json.Add<uint16>(fieldName, (uint16)fieldValue);
-					case typeof(uint32):
-						json.Add<uint32>(fieldName, (uint32)fieldValue);
-					case typeof(uint64):
-						json.Add<uint64>(fieldName, (uint64)fieldValue);
-					case typeof(char8):
-						json.Add<char8>(fieldName, (char8)fieldValue);
-					case typeof(char16):
-						json.Add<char16>(fieldName, (char16)fieldValue);
-					case typeof(char32):
-						json.Add<char32>(fieldName, (char32)fieldValue);
-					case typeof(float):
-						json.Add<float>(fieldName, (float)fieldValue);
-					case typeof(double):
-						json.Add<double>(fieldName, (double)fieldValue);
-					case typeof(bool):
-						json.Add<bool>(fieldName, (bool)fieldValue);
-					default:
-						let res = Serialize<JSONObject>(fieldValue);
-
-						if (res == .Err)
-						{
-							delete json;
-							return .Err;
-						}
-
-						json.Add<JSONObject>(fieldName, res.Value);
-						delete res.Value;
-					}
-				}
-			}
-
-			return .Ok;
+			return SerializeFieldInternal(fieldVariant, fieldName, fieldType, json);
 		}
 
 		private static Result<void> SerializeArrayInternal(Object object, FieldInfo field, JSONArray json)

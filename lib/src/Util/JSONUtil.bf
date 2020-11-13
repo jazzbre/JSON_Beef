@@ -5,6 +5,8 @@ namespace JSON_Beef.Util
 {
 	public class JSONUtil
 	{
+		public static String classNameTag = "__className__";
+
 		public static Result<T, JSON_ERRORS> ParseNumber<T>(String json)
 		{
 			if (!JSONValidator.IsValidNumber(json))
@@ -106,7 +108,7 @@ namespace JSON_Beef.Util
 			{
 			// Didn't find another way to cast when using reflection.
 			// Also, int8 and int16 do not provide a Parse method.
-			case typeof(int), typeof(int8), typeof(int16):
+			case typeof(int),typeof(int8),typeof(int16):
 				var num = int.Parse(str);
 				Internal.MemCpy(&outNum, &num, type.Size);
 			case typeof(int32):
@@ -117,7 +119,7 @@ namespace JSON_Beef.Util
 				Internal.MemCpy(&outNum, &num, type.Size);
 
 			// uint8/16 and char types do not provide a Parse method.
-			case typeof(uint), typeof(uint8), typeof(uint16), typeof(char8), typeof(char16), typeof(char32):
+			case typeof(uint),typeof(uint8),typeof(uint16),typeof(char8),typeof(char16),typeof(char32):
 				var num = uint.Parse(str);
 				Internal.MemCpy(&outNum, &num, type.Size);
 			case typeof(uint32):
@@ -198,7 +200,7 @@ namespace JSON_Beef.Util
 			else if (newPointIdx > numStr.Length)
 			{
 				var zeroStr = scope String();
-				var numberOfZero = (newPointIdx - numStr.Length) + ((hasPoint) ? (1): (0));
+				var numberOfZero = (newPointIdx - numStr.Length) + ((hasPoint) ? (1) : (0));
 
 				while (numberOfZero > 0)
 				{

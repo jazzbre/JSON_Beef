@@ -60,12 +60,6 @@ namespace JSON_Beef.Serialization
 			case .OBJECT:
 				var jsonObject = scope JSONObject();
 				JSONParser.ParseObject(jsonString, ref jsonObject);
-
-				if (!AreTypeMatching(jsonObject, object))
-				{
-					return .Err(.JSON_NOT_MATCHING_OBJECT);
-				}
-
 				return DeserializeObject(jsonObject, object);
 			case .ARRAY:
 				var jsonArray = scope JSONArray();
@@ -128,82 +122,149 @@ namespace JSON_Beef.Serialization
 				return .Err(.ERROR_PARSING);
 			}
 
-			Try!(DeserializeBaseObject(jsonObject, object));
-
-			let type = object.GetType() as TypeInstance;
-			let fields = type.GetFields();
-
-			for (var field in fields)
+			var type = object.GetType() as TypeInstance;
+			while (type != null)
 			{
-				if (AttributeChecker.ShouldIgnore(field))
+				let fields = type.GetFields();
+
+				for (var field in fields)
 				{
-					continue;
+					if (AttributeChecker.ShouldIgnore(field))
+					{
+						continue;
+					}
+
+					if (!HasField(jsonObject, object, field))
+					{
+						continue;
+					}
+
+					if (TypeChecker.IsTypeList(field.FieldType))
+					{
+						Try!(SetArrayField(field, jsonObject, object));
+					}
+					else if (field.FieldType.IsStruct)
+					{
+						Try!(SetStructField(field, jsonObject, (uint8*)Internal.UnsafeCastToPtr(object) + field.MemberOffset));
+					}
+					else if (TypeChecker.IsUserObject(field.FieldType))
+					{
+						Try!(SetObjectField(field, jsonObject, object));
+					}
+					else if (TypeChecker.IsPrimitive(field.FieldType))
+					{
+						Try!(SetPrimitiveField(field, jsonObject, (uint8*)Internal.UnsafeCastToPtr(object) + field.MemberOffset));
+					}
+					else
+					{
+						return .Err(.ERROR_PARSING);
+					}
 				}
 
-				if (!HasField(jsonObject, object, field))
-				{
-					continue;
-				}
-
-				if (TypeChecker.IsTypeList(field.FieldType))
-				{
-					Try!(SetArrayField(field, jsonObject, object));
-				}
-				else if (TypeChecker.IsUserObject(field.FieldType))
-				{
-					Try!(SetObjectField(field, jsonObject, object));
-				}
-				else if (TypeChecker.IsPrimitive(field.FieldType))
-				{
-					Try!(SetPrimitiveField(field, jsonObject, object));
-				}
-				else
-				{
-					return .Err(.ERROR_PARSING);
-				}
+				type = type.BaseType;
 			}
 
 			return .Ok;
 		}
 
-		private static Result<void, DESERIALIZE_ERRORS> DeserializeBaseObject(JSONObject jsonObject, Object obj)
+		private static Result<void, DESERIALIZE_ERRORS> DeserializeStruct(JSONObject jsonObject, Type _type, void* data)
 		{
-			let type = obj.GetType();
-			let baseType = type.BaseType;
-
-			if (baseType == type)
+			var type = _type;
+			while (type != null)
 			{
-				return .Ok;
+				let fields = type.GetFields();
+
+				for (var field in fields)
+				{
+					if (FieldHelper.HasFlag(field, .Static))
+					{
+						continue;
+					}
+					if (AttributeChecker.ShouldIgnore(field))
+					{
+						continue;
+					}
+
+					if (!HasField(jsonObject, null, field))
+					{
+						continue;
+					}
+
+					else if (TypeChecker.IsPrimitive(field.FieldType))
+					{
+						Try!(SetPrimitiveField(field, jsonObject, (uint8*)data + field.MemberOffset));
+					}
+					else
+					{
+						return .Err(.ERROR_PARSING);
+					}
+				}
+
+				type = type.BaseType;
 			}
 
-			let fields = baseType.GetFields();
-
-			for (var field in fields)
-			{
-				if (AttributeChecker.ShouldIgnore(field))
-				{
-					continue;
-				}
-
-				if (TypeChecker.IsTypeList(field.FieldType))
-				{
-					Try!(SetArrayField(field, jsonObject, obj));
-				}
-				else if (TypeChecker.IsUserObject(field.FieldType))
-				{
-					Try!(SetObjectField(field, jsonObject, obj));
-				}
-				else if (TypeChecker.IsPrimitive(field.FieldType))
-				{
-					Try!(SetPrimitiveField(field, jsonObject, obj));
-				}
-				else
-				{
-					return .Err(.ERROR_PARSING);
-				}
-			}
 			return .Ok;
 		}
+
+
+		private static Dictionary<String, Type> fullNameToTypeMap = new Dictionary<String, Type>() ~ DeleteTypeMap();
+
+		private static void DeleteTypeMap()
+		{
+			for (var pair in fullNameToTypeMap)
+			{
+				delete pair.key;
+			}
+			delete fullNameToTypeMap;
+		}
+
+		private static Type GetObjectType(String className)
+		{
+			Type objectType = null;
+			if (!fullNameToTypeMap.TryGetValue(className, out objectType))
+			{
+				var testClassName = scope String();
+				for (let testType in Type.Types)
+				{
+					if (!testType.IsObject)
+					{
+						continue;
+					}
+					testClassName.Clear();
+					testType.GetFullName(testClassName);
+					if (testClassName == className)
+					{
+						objectType = testType;
+						break;
+					}
+				}
+				if (objectType != null)
+				{
+					fullNameToTypeMap.Add(new String()..Append(className), objectType);
+				}
+			}
+			return objectType;
+		}
+
+		private static Object CreateObject(Type _objectType, JSONObject jsonObject)
+		{
+			var objectType = _objectType;
+			if (jsonObject.ContainsKey(JSONUtil.classNameTag))
+			{
+				var className = scope String();
+				jsonObject.Get<String>(JSONUtil.classNameTag, ref className);
+
+				objectType = GetObjectType(className);
+				if (objectType == null)
+				{
+					return null;
+				}
+			}
+
+			var innerObject = objectType.CreateObject().Value;
+			return innerObject;
+		}
+
 
 		// The object corresponds to the jsonArray
 		// e.g.: jsonArray => [["1", "2", "3"], ["1", "2"]] -- object => List<List<String>>
@@ -218,7 +279,7 @@ namespace JSON_Beef.Serialization
 
 			let type = object.GetType() as SpecializedGenericType;
 			let addMethod = Try!(type.GetMethod("Add"));
-			let paramType = type.GetGenericArg(0) as TypeInstance;
+			var paramType = type.GetGenericArg(0) as TypeInstance;
 
 			for (int i = 0; i < jsonArray.Count; i++)
 			{
@@ -237,23 +298,32 @@ namespace JSON_Beef.Serialization
 					continue;
 				}
 
-				if (TypeChecker.IsUserObject(paramType) && (paramType.CreateObject() case .Ok(let innerObject)))
+				if (TypeChecker.IsUserObject(paramType))
 				{
 					var jsonObject = scope JSONObject();
 					Try!(jsonArray.Get<JSONObject>(i, ref jsonObject));
 
-					Try!(DeserializeObject(jsonObject, innerObject));
-
-					if (addMethod.Invoke(object, innerObject) case .Err)
+					var innerObject = CreateObject(paramType, jsonObject);
+					if (innerObject != null)
 					{
-						return .Err(.CANNOT_ASSIGN_VALUE);
+						Try!(DeserializeObject(jsonObject, innerObject));
+
+						if (addMethod.Invoke(object, innerObject) case .Err)
+						{
+							return .Err(.CANNOT_ASSIGN_VALUE);
+						}
+						continue;
 					}
-					continue;
 				}
 
 				if (TypeChecker.IsPrimitive(paramType))
 				{
 					Try!(AddPrimitiveToArray(paramType, jsonArray, i, object, addMethod));
+				}
+
+				if (paramType.IsStruct)
+				{
+					//Try!(SetStructField(field, jsonObject, null));
 				}
 			}
 
@@ -405,70 +475,15 @@ namespace JSON_Beef.Serialization
 			return .Ok;
 		}
 
-		private static bool AreTypeMatching(JSONObject jsonObject, Object obj)
-		{
-			let type = obj.GetType();
-			let fields = type.GetFields();
-
-			if (!AreBaseTypeMatching(jsonObject, obj))
-			{
-				return false;
-			}
-
-			for (var field in fields)
-			{
-				if (AttributeChecker.ShouldIgnore(field))
-				{
-					continue;
-				}
-
-				if (!HasField(jsonObject, obj, field))
-				{
-					return false;
-				}
-			}
-			return true;
-		}
-
-		private static bool AreBaseTypeMatching(JSONObject jsonObject, Object obj)
-		{
-			let type = obj.GetType();
-			let baseType = type.BaseType;
-
-			if (type == baseType)
-			{
-				return true;
-			}
-
-			let fields = baseType.GetFields();
-
-			for (var field in fields)
-			{
-				if (AttributeChecker.ShouldIgnore(field))
-				{
-					continue;
-				}
-
-				let fieldValue = field.GetValue(obj).Get().Get<Object>();
-
-				if (!HasField(jsonObject, obj, field))
-				{
-					return false;
-				}
-
-				if (!AreBaseTypeMatching(jsonObject, fieldValue))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
-
 		private static bool HasField(JSONObject jsonObj, Object obj, FieldInfo field)
 		{
 			let fieldName = scope String(field.Name);
-			let fieldType = field.FieldType;
+			var fieldType = field.FieldType;
+
+			if (fieldType.IsEnum)
+			{
+				fieldType = fieldType.UnderlyingType;
+			}
 
 			// null values are accepted as valid.
 			var hasField = true;
@@ -512,7 +527,7 @@ namespace JSON_Beef.Serialization
 					return false;
 				}
 			}
-			else if (fieldType.IsObject)
+			else if (fieldType.IsObject || fieldType.IsStruct)
 			{
 				switch (fieldType)
 				{
@@ -535,13 +550,18 @@ namespace JSON_Beef.Serialization
 
 		static Result<void, DESERIALIZE_ERRORS> SetPrimitiveField(FieldInfo field, JSONObject jsonObj, Object obj)
 		{
-			let type = field.FieldType;
+			var type = field.FieldType;
 			let key = scope String(field.Name);
 
 			var tempObj = obj;
 			if (FieldHelper.HasFlag(field, .Static))
 			{
 				tempObj = null;
+			}
+
+			if (type.IsEnum)
+			{
+				type = type.UnderlyingType;
 			}
 
 			switch (type)
@@ -698,6 +718,191 @@ namespace JSON_Beef.Serialization
 			return .Ok;
 		}
 
+
+		static Result<void, DESERIALIZE_ERRORS> SetPrimitiveField(FieldInfo field, JSONObject jsonObj, void* data)
+		{
+			var type = field.FieldType;
+			let key = scope String(field.Name);
+
+			if (type.IsEnum)
+			{
+				type = type.UnderlyingType;
+			}
+
+			switch (type)
+			{
+			case typeof(int):
+				int dest = default;
+				if (jsonObj.Get<int>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((int*)data) = dest;
+			case typeof(int8):
+				int8 dest = default;
+				if (jsonObj.Get<int8>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+				*((int8*)data) = dest;
+			case typeof(int16):
+				int16 dest = default;
+				if (jsonObj.Get<int16>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((int16*)data) = dest;
+			case typeof(int32):
+				int32 dest = default;
+				if (jsonObj.Get<int32>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((int32*)data) = dest;
+			case typeof(int64):
+				int64 dest = default;
+				if (jsonObj.Get<int64>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((int64*)data) = dest;
+			case typeof(uint):
+				uint dest = default;
+				if (jsonObj.Get<uint>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((uint*)data) = dest;
+			case typeof(uint8):
+				uint8 dest = default;
+				if (jsonObj.Get<uint8>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((uint8*)data) = dest;
+			case typeof(uint16):
+				uint16 dest = default;
+				if (jsonObj.Get<uint16>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((uint16*)data) = dest;
+			case typeof(uint32):
+				uint32 dest = default;
+				if (jsonObj.Get<uint32>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((uint32*)data) = dest;
+			case typeof(uint64):
+				uint64 dest = default;
+				if (jsonObj.Get<uint64>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((uint64*)data) = dest;
+			case typeof(char8):
+				char8 dest = default;
+				if (jsonObj.Get<char8>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((char8*)data) = dest;
+			case typeof(char16):
+				char16 dest = default;
+				if (jsonObj.Get<char16>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((char16*)data) = dest;
+			case typeof(char32):
+				char32 dest = default;
+				if (jsonObj.Get<char32>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((char32*)data) = dest;
+			case typeof(float):
+				float dest = default;
+				if (jsonObj.Get<float>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((float*)data) = dest;
+			case typeof(double):
+				double dest = default;
+				if (jsonObj.Get<double>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((double*)data) = dest;
+			case typeof(bool):
+				bool dest = default;
+				if (jsonObj.Get<bool>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				*((bool*)data) = dest;
+			case typeof(String):
+				var dest = scope String();
+				if (jsonObj.Get<String>(key, ref dest) case .Err(let err))
+				{
+					return .Err(.ERROR_PARSING);
+				}
+
+				var str = new String(dest);
+				var targetString = (String*)data;
+
+				if (targetString != null)
+				{
+					// We need to delete the existing field otherwise it creates a memory leak.
+					delete *targetString;
+				}
+
+				*targetString = str;
+			default:
+				return .Err(.ERROR_PARSING);
+			}
+
+			return .Ok;
+		}
+
+		private static Result<void, DESERIALIZE_ERRORS> SetStructField(FieldInfo field, JSONObject jsonObject, void* data)
+		{
+			let key = scope String(field.Name);
+
+			var dest = scope JSONObject();
+			if (jsonObject.Get<JSONObject>(key, ref dest) case .Err(let err))
+			{
+				return .Err(.ERROR_PARSING);
+			}
+
+			if (dest == null)
+			{
+				return .Ok;
+			}
+
+			Try!(DeserializeStruct(dest, field.FieldType, data));
+
+			return .Ok;
+		}
+
+
 		private static Result<void, DESERIALIZE_ERRORS> SetObjectField(FieldInfo field, JSONObject jsonObject, Object obj)
 		{
 			let key = scope String(field.Name);
@@ -726,10 +931,10 @@ namespace JSON_Beef.Serialization
 				delete fieldVariant.Get<Object>();
 			}
 
-			var fieldObject = field.FieldType.CreateObject().Value;
+			var fieldObject = CreateObject(field.FieldType, dest);
 			Try!(DeserializeObject(dest, fieldObject));
-			field.SetValue(tempObj, fieldObject);
-
+			// Set field object
+			Internal.MemCpy((uint8*)Internal.UnsafeCastToPtr(tempObj) + field.MemberOffset, &fieldObject, sizeof(uint));
 			return .Ok;
 		}
 
