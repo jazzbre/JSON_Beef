@@ -218,12 +218,6 @@ namespace JSON_Beef.Serialization
 			}
 			else if (fieldType.IsStruct)
 			{
-				if (!fieldVariant.HasValue)
-				{
-					json.Add<Object>(fieldName, null);
-					return .Ok;
-				}
-
 				let res = Serialize<JSONObject>(fieldVariant);
 
 				if (res == .Err)
@@ -337,7 +331,9 @@ namespace JSON_Beef.Serialization
 				fieldVariant = field.GetValue(object).Get();
 			}
 
-			return SerializeFieldInternal(fieldVariant, fieldName, fieldType, json);
+			var result = SerializeFieldInternal(fieldVariant, fieldName, fieldType, json);
+			fieldVariant.Dispose();
+			return result;
 		}
 
 		private static Result<void> SerializeStructInternal(Variant variant, Type type, FieldInfo field, JSONObject json)
