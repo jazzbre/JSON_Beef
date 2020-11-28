@@ -1,18 +1,9 @@
 using System;
 
-namespace JSON_Beef.Attributes
+namespace JSON_Beef
 {
-	[AttributeUsage(.Field | .Property | .StaticField, .ReflectAttribute, ReflectUser=.All)]
-	public struct IgnoreSerializeAttribute: Attribute
+	[AttributeUsage(.Field | .Property | .StaticField, .ReflectAttribute, ReflectUser = .All)]
+	public struct Serialized : Attribute
 	{
-	}
-
-	[AttributeUsage(.All, .ReflectAttribute | .AlwaysIncludeTarget)]
-	public struct SerializableAttribute: Attribute
-	{
-		public void TestAMethod()
-		{
-			Console.WriteLine("Test A method");
-		}
 	}
 }

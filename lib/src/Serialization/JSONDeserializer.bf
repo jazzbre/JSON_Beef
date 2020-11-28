@@ -261,8 +261,12 @@ namespace JSON_Beef.Serialization
 				}
 			}
 
-			var innerObject = objectType.CreateObject().Value;
-			return innerObject;
+			if (objectType.CreateObject() case .Ok(let innerObject))
+			{
+				return innerObject;
+			}
+
+			return null;
 		}
 
 
@@ -279,7 +283,7 @@ namespace JSON_Beef.Serialization
 
 			let type = object.GetType() as SpecializedGenericType;
 			let addMethod = Try!(type.GetMethod("Add"));
-			var paramType = type.GetGenericArg(0) as TypeInstance;
+			var paramType = type.GetGenericArg(0);
 
 			for (int i = 0; i < jsonArray.Count; i++)
 			{
