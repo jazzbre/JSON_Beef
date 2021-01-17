@@ -22,16 +22,16 @@ namespace JSON_Beef.Serialization
 			ERROR_DESERIALIZATION
 		}
 
-		public static Result<void, DESERIALIZE_ERRORS> Deserialize<T>(String jsonString, T object) where T : class
+		public static Result<void, DESERIALIZE_ERRORS> Deserialize<T>(StringView jsonString, T object) where T : class
 		{
 			return Deserialize(jsonString, object, typeof(T));
 		}
 
-		public static Result<void, DESERIALIZE_ERRORS> Deserialize<T>(String jsonString, ref T object) where T : struct where T : new
+		public static Result<void, DESERIALIZE_ERRORS> Deserialize<T>(StringView jsonString, ref T object, bool validate = false) where T : struct where T : new
 		{
 			var obj = scope Object();
 			obj = object;
-			let res = Deserialize(jsonString, obj, typeof(T));
+			let res = Deserialize(jsonString, obj, typeof(T), validate);
 
 			switch (res)
 			{
@@ -43,11 +43,14 @@ namespace JSON_Beef.Serialization
 			}
 		}
 
-		private static Result<void, DESERIALIZE_ERRORS> Deserialize(String jsonString, Object object, Type type)
+		private static Result<void, DESERIALIZE_ERRORS> Deserialize(StringView jsonString, Object object, Type type, bool validate = false)
 		{
-			if (!JSONValidator.IsValidJson(jsonString))
+			if (validate)
 			{
-				return .Err(.INVALID_JSON);
+				if (!JSONValidator.IsValidJson(jsonString))
+				{
+					return .Err(.INVALID_JSON);
+				}
 			}
 
 			if (object == null)

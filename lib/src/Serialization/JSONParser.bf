@@ -34,12 +34,12 @@ namespace JSON_Beef.Serialization
 			delete escapedChar;
 		}
 
-		public static bool IsValidJson(String json)
+		public static bool IsValidJson(StringView json)
 		{
 			return JSONValidator.IsValidJson(json);
 		}
 
-		public static JSON_DOCUMENT_TYPE GetJsonType(String json)
+		public static JSON_DOCUMENT_TYPE GetJsonType(StringView json)
 		{
 			let token = json[0];
 
@@ -57,7 +57,7 @@ namespace JSON_Beef.Serialization
 			}
 		}
 
-		public static Result<JSONArray, JSON_ERRORS> ParseArray(String json)
+		public static Result<JSONArray, JSON_ERRORS> ParseArray(StringView json)
 		{
 			var array = new JSONArray();
 			if (ParseArrayInternal(json, ref array) case .Err(let err))
@@ -68,7 +68,7 @@ namespace JSON_Beef.Serialization
 			return array;
 		}
 
-		public static Result<void, JSON_ERRORS> ParseArray(String json, ref JSONArray array)
+		public static Result<void, JSON_ERRORS> ParseArray(StringView json, ref JSONArray array)
 		{
 			if (ParseArrayInternal(json, ref array) case .Err(let err))
 			{
@@ -78,7 +78,7 @@ namespace JSON_Beef.Serialization
 			return .Ok;
 		}
 
-		public static Result<JSONObject, JSON_ERRORS> ParseObject(String json)
+		public static Result<JSONObject, JSON_ERRORS> ParseObject(StringView json)
 		{
 			var object = new JSONObject();
 			if (ParseObjectInternal(json, ref object) case .Err(let err))
@@ -89,7 +89,7 @@ namespace JSON_Beef.Serialization
 			return object;
 		}
 
-		public static Result<void, JSON_ERRORS> ParseObject(String json, ref JSONObject object)
+		public static Result<void, JSON_ERRORS> ParseObject(StringView json, ref JSONObject object)
 		{
 			if (ParseObjectInternal(json, ref object) case .Err(let err))
 			{
@@ -99,7 +99,7 @@ namespace JSON_Beef.Serialization
 			return .Ok;
 		}
 
-		private static Result<int, JSON_ERRORS> ParseString(String json, String outString)
+		private static Result<int, JSON_ERRORS> ParseString(StringView json, String outString)
 		{
 			int i;
 			outString.Clear();
@@ -141,7 +141,7 @@ namespace JSON_Beef.Serialization
 			return .Ok(i);
 		}
 
-		private static Result<int, JSON_ERRORS> ParseNumber(String json, String outStr)
+		private static Result<int, JSON_ERRORS> ParseNumber(StringView json, String outStr)
 		{
 			if (!JSONValidator.IsValidNumber(json))
 			{
@@ -176,7 +176,7 @@ namespace JSON_Beef.Serialization
 			return .Ok(i - 1);
 		}
 
-		private static Result<int, JSON_ERRORS> ParseLiteral(String json, String outStr)
+		private static Result<int, JSON_ERRORS> ParseLiteral(StringView json, String outStr)
 		{
 			if (!JSONValidator.IsValidLiteral(json))
 			{
@@ -207,7 +207,7 @@ namespace JSON_Beef.Serialization
 			return .Ok(i - 1);
 		}
 
-		private static Result<int, JSON_ERRORS> ParseArrayInternal(String json, ref JSONArray array)
+		private static Result<int, JSON_ERRORS> ParseArrayInternal(StringView json, ref JSONArray array)
 		{
 			int i = 0;
 
@@ -217,7 +217,7 @@ namespace JSON_Beef.Serialization
 
 				if ((c == '[') && (i != 0))
 				{
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					var outArr = scope JSONArray();
 					let res = ParseArrayInternal(str, ref outArr);
 
@@ -240,7 +240,7 @@ namespace JSON_Beef.Serialization
 					// We do not want the first char in the string to parse to be taken as a
 					// closing string token.
 					i++;
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					var outStr = scope String();
 					let res = ParseString(str, outStr);
 
@@ -256,7 +256,7 @@ namespace JSON_Beef.Serialization
 				}
 				else if ((c == '-') || (c.IsNumber))
 				{
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					var outStr = scope String();
 					let res = ParseNumber(str, outStr);
 
@@ -279,7 +279,7 @@ namespace JSON_Beef.Serialization
 				}
 				else if (c.IsLetter)
 				{
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					var outStr = scope String();
 					let res = ParseLiteral(str, outStr);
 
@@ -302,7 +302,7 @@ namespace JSON_Beef.Serialization
 				}
 				else if (c == '{')
 				{
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					var outObject = scope JSONObject();
 
 					let res = ParseObjectInternal(str, ref outObject);
@@ -322,7 +322,7 @@ namespace JSON_Beef.Serialization
 			return .Ok(i);
 		}
 
-		private static Result<int, JSON_ERRORS> ParseObjectInternal(String json, ref JSONObject object)
+		private static Result<int, JSON_ERRORS> ParseObjectInternal(StringView json, ref JSONObject object)
 		{
 			int i = 0;
 			var lookForKey = true;
@@ -336,7 +336,7 @@ namespace JSON_Beef.Serialization
 				if ((c == '{') && (!lookForKey))
 				{
 					i++;
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					var outObject = scope JSONObject();
 
 					let res = ParseObjectInternal(str, ref outObject);
@@ -360,7 +360,7 @@ namespace JSON_Beef.Serialization
 					// We do not want the first char in the string to parse to be taken as a
 					// closing string token.
 					i++;
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 
 					if (lookForKey)
 					{
@@ -395,7 +395,7 @@ namespace JSON_Beef.Serialization
 				}
 				else if (c.IsDigit || (c == '-') && (!lookForKey))
 				{
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					var outStr = scope String();
 					let res = ParseNumber(str, outStr);
 
@@ -418,7 +418,7 @@ namespace JSON_Beef.Serialization
 				}
 				else if (c.IsLetter && (!lookForKey))
 				{
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					var outStr = scope String();
 
 					let res = ParseLiteral(str, outStr);
@@ -443,7 +443,7 @@ namespace JSON_Beef.Serialization
 				else if (c == '[' && (!lookForKey))
 				{
 					//i++;
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					var outArr = scope JSONArray();
 
 					let res = ParseArrayInternal(str, ref outArr);

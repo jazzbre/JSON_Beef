@@ -5,10 +5,10 @@ namespace JSON_Beef.Util
 {
 	public class JSONValidator
 	{
-		public static bool IsValidJson(String json)
+		public static bool IsValidJson(StringView json)
 		{
 			let c = json[0];
-			let str = scope String(&json[0]);
+			let str = StringView(json, 0, json.Length);
 
 			if (c == '[')
 			{
@@ -22,7 +22,7 @@ namespace JSON_Beef.Util
 			return false;
 		}
 
-		public static bool IsValidString(String json)
+		public static bool IsValidString(StringView json)
 		{
 			var isValid = true;
 
@@ -31,7 +31,7 @@ namespace JSON_Beef.Util
 			return isValid;
 		}
 
-		public static bool IsValidNumber(String json)
+		public static bool IsValidNumber(StringView json)
 		{
 			var isValid = true;
 
@@ -40,7 +40,7 @@ namespace JSON_Beef.Util
 			return isValid;
 		}
 
-		public static bool IsValidLiteral(String json)
+		public static bool IsValidLiteral(StringView json)
 		{
 			var isValid = true;
 
@@ -49,7 +49,7 @@ namespace JSON_Beef.Util
 			return isValid;
 		}
 
-		public static bool IsValidObject(String json)
+		public static bool IsValidObject(StringView json)
 		{
 			var isValid = true;
 
@@ -58,7 +58,7 @@ namespace JSON_Beef.Util
 			return isValid;
 		}
 
-		public static bool IsValidArray(String json)
+		public static bool IsValidArray(StringView json)
 		{
 			var isValid = true;
 
@@ -67,7 +67,7 @@ namespace JSON_Beef.Util
 			return isValid;
 		}
 
-		private static int ValidateString(String json, ref bool isValid)
+		private static int ValidateString(StringView json, ref bool isValid)
 		{
 			int i;
 			var foundEndString = false;
@@ -80,7 +80,7 @@ namespace JSON_Beef.Util
 			escapedChar.Add('\n');
 			escapedChar.Add('\r');
 			escapedChar.Add('\t');
-			
+
 			if (json[0] != '"')
 			{
 				isValid = false;
@@ -116,7 +116,7 @@ namespace JSON_Beef.Util
 			return (c >= (char8)21) && (c <= (char8)126);
 		}
 
-		private static int ValidateNumber(String json, ref bool isValid)
+		private static int ValidateNumber(StringView json, ref bool isValid)
 		{
 			int i = 0;
 			var dotCount = 0;
@@ -213,7 +213,7 @@ namespace JSON_Beef.Util
 			return isValid;
 		}
 
-		private static int ValidateLiteral(String json, ref bool isValid)
+		private static int ValidateLiteral(StringView json, ref bool isValid)
 		{
 			int i = 0;
 			var str = scope String();
@@ -240,7 +240,7 @@ namespace JSON_Beef.Util
 			return i - 1;
 		}
 
-		private static int ValidateObject(String json, ref bool isValid)
+		private static int ValidateObject(StringView json, ref bool isValid)
 		{
 			int i;
 			var lookForKey = true;
@@ -254,7 +254,7 @@ namespace JSON_Beef.Util
 			{
 				isValid = false;
 				return 0;
-			}	
+			}
 
 			for (i = 1; i < json.Length; i++)
 			{
@@ -294,7 +294,7 @@ namespace JSON_Beef.Util
 
 					if (c == '"')
 					{
-						let str = scope String(&json[i]);
+						let str = StringView(json, i, json.Length - i);
 						i += ValidateString(str, ref isValid);
 
 						if (lookForKey)
@@ -312,7 +312,7 @@ namespace JSON_Beef.Util
 					}
 					else if (c.IsLetter && lookForValue)
 					{
-						let str = scope String(&json[i]);
+						let str = StringView(json, i, json.Length - i);
 						i += ValidateLiteral(str, ref isValid);
 						lookForValueSeparator = true;
 						lookForValue = false;
@@ -320,7 +320,7 @@ namespace JSON_Beef.Util
 					}
 					else if ((c.IsNumber || (c == '-')) && lookForValue)
 					{
-						let str = scope String(&json[i]);
+						let str = StringView(json, i, json.Length - i);
 						i += ValidateNumber(str, ref isValid);
 						lookForValueSeparator = true;
 						lookForValue = false;
@@ -328,7 +328,7 @@ namespace JSON_Beef.Util
 					}
 					else if ((c == '[') && lookForValue)
 					{
-						let str = scope String(&json[i]);
+						let str = StringView(json, i, json.Length - i);
 						i += ValidateArray(str, ref isValid);
 						lookForValueSeparator = true;
 						lookForValue = false;
@@ -336,7 +336,7 @@ namespace JSON_Beef.Util
 					}
 					else if ((c == '{') && lookForValue)
 					{
-						let str = scope String(&json[i]);
+						let str = StringView(json, i, json.Length - i);
 						i += ValidateObject(str, ref isValid);
 						lookForValueSeparator = true;
 						lookForValue = false;
@@ -355,7 +355,7 @@ namespace JSON_Beef.Util
 			return i;
 		}
 
-		private static int ValidateArray(String json, ref bool isValid)
+		private static int ValidateArray(StringView json, ref bool isValid)
 		{
 			int i;
 			var foundEndArray = false;
@@ -374,7 +374,7 @@ namespace JSON_Beef.Util
 
 				if (c == '[')
 				{
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					i += ValidateArray(str, ref isValid);
 					lookForValueSeparator = true;
 					lastChar = ' ';
@@ -389,28 +389,28 @@ namespace JSON_Beef.Util
 				}
 				else if (c == '{')
 				{
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					i += ValidateObject(str, ref isValid);
 					lookForValueSeparator = true;
 					lastChar = ' ';
 				}
 				else if (c.IsNumber || (c == '-'))
 				{
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					i += ValidateNumber(str, ref isValid);
 					lookForValueSeparator = true;
 					lastChar = ' ';
 				}
 				else if (c.IsLetter)
 				{
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					i += ValidateLiteral(str, ref isValid);
 					lookForValueSeparator = true;
 					lastChar = ' ';
 				}
 				else if (c == '"')
 				{
-					let str = scope String(&json[i]);
+					let str = StringView(json, i, json.Length - i);
 					i += ValidateString(str, ref isValid);
 					lookForValueSeparator = true;
 					lastChar = ' ';
