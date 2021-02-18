@@ -148,19 +148,43 @@ namespace JSON_Beef.Serialization
 				case typeof(bool):
 					jsonArray.AddRange<bool>(object);
 				default:
-					var list = (List<Object>*)&object;
-
-					for (var item in *list)
+					if (genericType.IsStruct)
 					{
-						let res = Serialize<JSONObject>(item);
-
-						if (res == .Err)
+						var list = (List<int>*)&object;
+						var count = (*list).Count;
+						if (count > 0)
 						{
-							return .Err;
-						}
+							var first = (uint8*)&((*list)[0]);
+							for (int i = 0; i < count; ++i)
+							{
+								var variant = Variant.CreateReference(genericType, first + i * genericType.Size);
+								let res = Serialize<JSONObject>(variant);
 
-						jsonArray.Add<JSONObject>(res.Value);
-						delete res.Value;
+								if (res == .Err)
+								{
+									return .Err;
+								}
+
+								jsonArray.Add<JSONObject>(res.Value);
+								delete res.Value;
+							}
+						}
+					} else
+					{
+						var list = (List<Object>*)&object;
+
+						for (var item in *list)
+						{
+							let res = Serialize<JSONObject>(item);
+
+							if (res == .Err)
+							{
+								return .Err;
+							}
+
+							jsonArray.Add<JSONObject>(res.Value);
+							delete res.Value;
+						}
 					}
 				}
 			}

@@ -292,6 +292,12 @@ namespace JSON_Beef.Serialization
 			let addMethod = Try!(type.GetMethod("Add"));
 			var paramType = type.GetGenericArg(0);
 
+			if (paramType.IsStruct)
+			{
+				var list = (List<int>*)&object;
+				(*list).Count = jsonArray.Count;
+			}
+
 			for (int i = 0; i < jsonArray.Count; i++)
 			{
 				// Calls recursively for handling List<List<...>>
@@ -331,10 +337,13 @@ namespace JSON_Beef.Serialization
 				{
 					Try!(AddPrimitiveToArray(paramType, jsonArray, i, object, addMethod));
 				}
-
-				if (paramType.IsStruct)
+				else if (paramType.IsStruct)
 				{
-					//Try!(SetStructField(field, jsonObject, null));
+					var list = (List<int>*)&object;
+					var first = (uint8*)&((*list)[0]);
+					var jsonObject = scope JSONObject();
+					Try!(jsonArray.Get<JSONObject>(i, ref jsonObject));
+					DeserializeStruct(jsonObject, paramType, first + i * paramType.Size);
 				}
 			}
 
