@@ -197,6 +197,10 @@ namespace JSON_Beef.Serialization
 					{
 						Try!(SetPrimitiveField(field, jsonObject, (uint8*)data + field.MemberOffset));
 					}
+					else if (field.FieldType.IsStruct)
+					{
+						Try!(SetStructField(field, jsonObject, (uint8*)data + field.MemberOffset));
+					}
 					else
 					{
 						return .Err(.ERROR_PARSING);
