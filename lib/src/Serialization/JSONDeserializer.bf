@@ -213,46 +213,6 @@ namespace JSON_Beef.Serialization
 			return .Ok;
 		}
 
-
-		private static Dictionary<String, Type> fullNameToTypeMap = new Dictionary<String, Type>() ~ DeleteTypeMap();
-
-		private static void DeleteTypeMap()
-		{
-			for (var pair in fullNameToTypeMap)
-			{
-				delete pair.key;
-			}
-			delete fullNameToTypeMap;
-		}
-
-		private static Type GetObjectType(String className)
-		{
-			Type objectType = null;
-			if (!fullNameToTypeMap.TryGetValue(className, out objectType))
-			{
-				var testClassName = scope String();
-				for (let testType in Type.Types)
-				{
-					if (!testType.IsObject)
-					{
-						continue;
-					}
-					testClassName.Clear();
-					testType.GetFullName(testClassName);
-					if (testClassName == className)
-					{
-						objectType = testType;
-						break;
-					}
-				}
-				if (objectType != null)
-				{
-					fullNameToTypeMap.Add(new String()..Append(className), objectType);
-				}
-			}
-			return objectType;
-		}
-
 		private static Object CreateObject(Type _objectType, JSONObject jsonObject)
 		{
 			var objectType = _objectType;
@@ -261,7 +221,7 @@ namespace JSON_Beef.Serialization
 				var className = scope String();
 				jsonObject.Get<String>(JSONUtil.classNameTag, ref className);
 
-				objectType = GetObjectType(className);
+				objectType = JSONUtil.GetObjectType(className);
 				if (objectType == null)
 				{
 					return null;
@@ -304,7 +264,7 @@ namespace JSON_Beef.Serialization
 				if (TypeChecker.IsTypeList(paramType) && (paramType.CreateObject() case .Ok(let innerList)))
 				{
 					var innerJsonArray = scope JSONArray();
-					Try!(jsonArray.Get<JSONArray>(i, ref innerJsonArray));
+					jsonArray.Get<JSONArray>(i, ref innerJsonArray);
 
 					Try!(DeserializeArray(innerJsonArray, innerList));
 
@@ -318,7 +278,7 @@ namespace JSON_Beef.Serialization
 				if (TypeChecker.IsUserObject(paramType))
 				{
 					var jsonObject = scope JSONObject();
-					Try!(jsonArray.Get<JSONObject>(i, ref jsonObject));
+					jsonArray.Get<JSONObject>(i, ref jsonObject);
 
 					var innerObject = CreateObject(paramType, jsonObject);
 					if (innerObject != null)
@@ -342,7 +302,7 @@ namespace JSON_Beef.Serialization
 					var list = (List<int>*)&object;
 					var first = (uint8*)&((*list)[0]);
 					var jsonObject = scope JSONObject();
-					Try!(jsonArray.Get<JSONObject>(i, ref jsonObject));
+					jsonArray.Get<JSONObject>(i, ref jsonObject);
 					DeserializeStruct(jsonObject, paramType, first + i * paramType.Size);
 				}
 			}
@@ -356,139 +316,71 @@ namespace JSON_Beef.Serialization
 			{
 			case typeof(int):
 				int dest = default;
-				if (jsonArray.Get<int>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<int>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(int8):
 				int8 dest = default;
-				if (jsonArray.Get<int8>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<int8>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(int16):
 				int16 dest = default;
-				if (jsonArray.Get<int16>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<int16>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(int32):
 				int32 dest = default;
-				if (jsonArray.Get<int32>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<int32>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(int64):
 				int64 dest = default;
-				if (jsonArray.Get<int64>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<int64>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(uint):
 				uint dest = default;
-				if (jsonArray.Get<uint>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<uint>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(uint8):
 				uint8 dest = default;
-				if (jsonArray.Get<uint8>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<uint8>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(uint16):
 				uint16 dest = default;
-				if (jsonArray.Get<uint16>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<uint16>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(uint32):
 				uint32 dest = default;
-				if (jsonArray.Get<uint32>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<uint32>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(uint64):
 				uint32 dest = default;
-				if (jsonArray.Get<uint32>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<uint32>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(char8):
 				char8 dest = default;
-				if (jsonArray.Get<char8>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<char8>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(char16):
 				char16 dest = default;
-				if (jsonArray.Get<char16>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<char16>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(char32):
 				char32 dest = default;
-				if (jsonArray.Get<char32>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<char32>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(float):
 				float dest = default;
-				if (jsonArray.Get<float>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<float>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(double):
 				double dest = default;
-				if (jsonArray.Get<double>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<double>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(bool):
 				bool dest = default;
-				if (jsonArray.Get<bool>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<bool>(i, ref dest);
 				addMethod.Invoke(obj, dest);
 			case typeof(String):
 				String dest = default;
-				if (jsonArray.Get<String>(i, ref dest) case .Err(let err))
-				{
-					return .Err(.ERROR_PARSING);
-				}
-
+				jsonArray.Get<String>(i, ref dest);
 				addMethod.Invoke(obj, new String(dest));
 			}
 

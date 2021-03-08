@@ -168,17 +168,17 @@ namespace JSON_Beef.Types
 			}
 		}
 
-		public Result<void, JSON_ERRORS> Get<T>(int idx, ref T dest)
+		public JSON_ERRORS Get<T>(int idx, ref T dest)
 		{
 			var destVariant = Variant.Create<T>(default(T));
 			if (Get(idx, ref destVariant) case .Err(let err))
 			{
-				return .Err(err);
+				return err;
 			}
 
 			dest = destVariant.Get<T>();
 
-			return .Ok;
+			return .OK;
 		}
 
 		private Result<void, JSON_ERRORS> Get(int idx, ref Variant dest)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using JSON_Beef.Types;
 
 namespace JSON_Beef.Util
@@ -264,5 +265,38 @@ namespace JSON_Beef.Util
 
 			return (l == .TRUE) ? (true) : (false);
 		}
+
+		private static Dictionary<String, Type> fullNameToTypeMap = new Dictionary<String, Type>() ~ DeleteDictionaryAndKeys!(_);
+
+		public static Type GetObjectType(String className)
+		{
+			var objectBaseType = typeof(Object);
+			if (fullNameToTypeMap.Count == 0)
+			{
+				var testClassName = scope String();
+				for (let testType in Type.Types)
+				{
+					if (!testType.IsObject || !testType.IsSubtypeOf(objectBaseType) || testType.InstanceSize == 0)
+					{
+						continue;
+					}
+					testClassName.Clear();
+					testType.GetFullName(testClassName);
+					var name = new String()..Append(testClassName);
+					if (!fullNameToTypeMap.TryAdd(name, testType))
+					{
+						delete name;
+					}
+				}
+			}
+			Type objectType = null;
+			if (!fullNameToTypeMap.TryGetValue(className, out objectType))
+			{
+				return null;
+			}
+			return objectType;
+		}
+
+
 	}
 }
