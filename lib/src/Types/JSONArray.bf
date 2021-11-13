@@ -168,7 +168,20 @@ namespace JSON_Beef.Types
 			}
 		}
 
-		public JSON_ERRORS Get<T>(int idx, ref T dest)
+		public JSON_ERRORS Get<T>(int idx, ref T dest) where T : class
+		{
+			var destVariant = Variant.Create<T>(default(T));
+			if (Get(idx, ref destVariant) case .Err(let err))
+			{
+				return err;
+			}
+
+			dest = destVariant.Get<T>();
+
+			return .OK;
+		}
+
+		public JSON_ERRORS Get<T>(int idx, ref T dest) where T : struct
 		{
 			var destVariant = Variant.Create<T>(default(T));
 			if (Get(idx, ref destVariant) case .Err(let err))

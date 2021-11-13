@@ -72,7 +72,21 @@ namespace JSON_Beef.Types
 			delete _dictionary;
 		}
 
-		public Result<void, JSON_ERRORS> Get<T>(String key, ref T dest)
+		public Result<void, JSON_ERRORS> Get<T>(String key, ref T dest) where T : class
+		{
+			var destVariant = Variant.Create<T>(default(T));
+			if (Get(key, ref destVariant) case .Err(let err))
+			{
+				return .Err(err);
+			}
+
+			dest = destVariant.Get<T>();
+
+			return .Ok;
+		}
+
+
+		public Result<void, JSON_ERRORS> Get<T>(String key, ref T dest) where T : struct
 		{
 			var destVariant = Variant.Create<T>(default(T));
 			if (Get(key, ref destVariant) case .Err(let err))

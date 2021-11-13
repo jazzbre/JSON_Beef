@@ -243,11 +243,6 @@ namespace JSON_Beef.Util
 				var res = Double.Parse(str);
 				Internal.MemCpy(&outNum, &res, type.Size);
 			}
-			else
-			{
-				return .Err(.INVALID_TYPE);
-			}
-
 			return .Ok(outNum);
 		}
 

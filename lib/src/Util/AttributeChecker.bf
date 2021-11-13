@@ -6,9 +6,13 @@ namespace JSON_Beef.Util
 	{
 		public static bool ShouldIgnore(FieldInfo field)
 		{
-			let shouldUse = field.GetCustomAttribute<Serialized>();
+			switch (field.GetCustomAttribute<Serialized>()) {
+			case .Err(let err):
+				return true;
+			default:
+			}
 
-			return (!(shouldUse == .Ok) || FieldHelper.HasFlag(field, .PrivateScope) || FieldHelper.HasFlag(field, .Private) || FieldHelper.HasFlag(field, .Static));
+			return (FieldHelper.HasFlag(field, .PrivateScope) || FieldHelper.HasFlag(field, .Private) || FieldHelper.HasFlag(field, .Static));
 		}
 	}
 }

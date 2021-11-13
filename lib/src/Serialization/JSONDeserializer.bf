@@ -126,88 +126,78 @@ namespace JSON_Beef.Serialization
 			}
 
 			var type = object.GetType() as TypeInstance;
-			while (type != null)
+
+			let fields = type.GetFields();
+
+			for (var field in fields)
 			{
-				let fields = type.GetFields();
-
-				for (var field in fields)
+				if (AttributeChecker.ShouldIgnore(field))
 				{
-					if (AttributeChecker.ShouldIgnore(field))
-					{
-						continue;
-					}
-
-					if (!HasField(jsonObject, object, field))
-					{
-						continue;
-					}
-
-					if (TypeChecker.IsTypeList(field.FieldType))
-					{
-						Try!(SetArrayField(field, jsonObject, object));
-					}
-					else if (field.FieldType.IsStruct)
-					{
-						Try!(SetStructField(field, jsonObject, (uint8*)Internal.UnsafeCastToPtr(object) + field.MemberOffset));
-					}
-					else if (TypeChecker.IsUserObject(field.FieldType))
-					{
-						Try!(SetObjectField(field, jsonObject, object));
-					}
-					else if (TypeChecker.IsPrimitive(field.FieldType))
-					{
-						Try!(SetPrimitiveField(field, jsonObject, (uint8*)Internal.UnsafeCastToPtr(object) + field.MemberOffset));
-					}
-					else
-					{
-						return .Err(.ERROR_PARSING);
-					}
+					continue;
 				}
 
-				type = type.BaseType;
+				if (!HasField(jsonObject, object, field))
+				{
+					continue;
+				}
+
+				if (TypeChecker.IsTypeList(field.FieldType))
+				{
+					Try!(SetArrayField(field, jsonObject, object));
+				}
+				else if (field.FieldType.IsStruct)
+				{
+					Try!(SetStructField(field, jsonObject, (uint8*)Internal.UnsafeCastToPtr(object) + field.MemberOffset));
+				}
+				else if (TypeChecker.IsUserObject(field.FieldType))
+				{
+					Try!(SetObjectField(field, jsonObject, object));
+				}
+				else if (TypeChecker.IsPrimitive(field.FieldType))
+				{
+					Try!(SetPrimitiveField(field, jsonObject, (uint8*)Internal.UnsafeCastToPtr(object) + field.MemberOffset));
+				}
+				else
+				{
+					return .Err(.ERROR_PARSING);
+				}
 			}
 
 			return .Ok;
 		}
 
-		private static Result<void, DESERIALIZE_ERRORS> DeserializeStruct(JSONObject jsonObject, Type _type, void* data)
+		private static Result<void, DESERIALIZE_ERRORS> DeserializeStruct(JSONObject jsonObject, Type type, void* data)
 		{
-			var type = _type;
-			while (type != null)
+			let fields = type.GetFields();
+
+			for (var field in fields)
 			{
-				let fields = type.GetFields();
-
-				for (var field in fields)
+				if (FieldHelper.HasFlag(field, .Static))
 				{
-					if (FieldHelper.HasFlag(field, .Static))
-					{
-						continue;
-					}
-					if (AttributeChecker.ShouldIgnore(field))
-					{
-						continue;
-					}
-
-					if (!HasField(jsonObject, null, field))
-					{
-						continue;
-					}
-
-					else if (TypeChecker.IsPrimitive(field.FieldType))
-					{
-						Try!(SetPrimitiveField(field, jsonObject, (uint8*)data + field.MemberOffset));
-					}
-					else if (field.FieldType.IsStruct)
-					{
-						Try!(SetStructField(field, jsonObject, (uint8*)data + field.MemberOffset));
-					}
-					else
-					{
-						return .Err(.ERROR_PARSING);
-					}
+					continue;
+				}
+				if (AttributeChecker.ShouldIgnore(field))
+				{
+					continue;
 				}
 
-				type = type.BaseType;
+				if (!HasField(jsonObject, null, field))
+				{
+					continue;
+				}
+
+				else if (TypeChecker.IsPrimitive(field.FieldType))
+				{
+					Try!(SetPrimitiveField(field, jsonObject, (uint8*)data + field.MemberOffset));
+				}
+				else if (field.FieldType.IsStruct)
+				{
+					Try!(SetStructField(field, jsonObject, (uint8*)data + field.MemberOffset));
+				}
+				else
+				{
+					return .Err(.ERROR_PARSING);
+				}
 			}
 
 			return .Ok;
@@ -777,7 +767,7 @@ namespace JSON_Beef.Serialization
 					return .Err(.ERROR_PARSING);
 				}
 
-				var str = new String(dest);
+				var str = new String(dest != null ? dest : "");
 				var targetString = (String*)data;
 
 				if (targetString != null)

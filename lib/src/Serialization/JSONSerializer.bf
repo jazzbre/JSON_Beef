@@ -21,25 +21,20 @@ namespace JSON_Beef.Serialization
 			type.GetFullName(classFullName);
 			json.Add<String>(JSONUtil.classNameTag, classFullName);
 
-			while (type != null)
+			var fields = type.GetFields();
+			for (var field in fields)
 			{
-				var fields = type.GetFields();
-				for (var field in fields)
+				if (AttributeChecker.ShouldIgnore(field))
 				{
-					if (AttributeChecker.ShouldIgnore(field))
-					{
-						continue;
-					}
-
-					let res = SerializeObjectInternal(object, type, field, json);
-
-					if (res == .Err)
-					{
-						return .Err;
-					}
+					continue;
 				}
 
-				type = type.BaseType;
+				let res = SerializeObjectInternal(object, type, field, json);
+
+				if (res == .Err)
+				{
+					return .Err;
+				}
 			}
 
 			return .Ok(json);
@@ -50,29 +45,24 @@ namespace JSON_Beef.Serialization
 			let json = new JSONObject();
 			var type = variant.VariantType;
 
-			while (type != null)
+			var fields = type.GetFields();
+			for (var field in fields)
 			{
-				var fields = type.GetFields();
-				for (var field in fields)
+				if (FieldHelper.HasFlag(field, .Static))
 				{
-					if (FieldHelper.HasFlag(field, .Static))
-					{
-						continue;
-					}
-					if (AttributeChecker.ShouldIgnore(field))
-					{
-						continue;
-					}
-
-					let res = SerializeStructInternal(variant, type, field, json);
-
-					if (res == .Err)
-					{
-						return .Err;
-					}
+					continue;
+				}
+				if (AttributeChecker.ShouldIgnore(field))
+				{
+					continue;
 				}
 
-				type = type.BaseType;
+				let res = SerializeStructInternal(variant, type, field, json);
+
+				if (res == .Err)
+				{
+					return .Err;
+				}
 			}
 
 			return .Ok(json);
@@ -90,7 +80,7 @@ namespace JSON_Beef.Serialization
 			let jsonArray = new JSONArray();
 
 			let type = object.GetType() as SpecializedGenericType;
-			let genericType = type.GetGenericArg(0);
+			var genericType = type.GetGenericArg(0);
 
 			if (TypeChecker.IsTypeList(genericType))
 			{
@@ -111,6 +101,10 @@ namespace JSON_Beef.Serialization
 			}
 			else
 			{
+				if (genericType.IsEnum)
+				{
+					genericType = genericType.UnderlyingType;
+				}
 				switch (genericType)
 				{
 				case typeof(String):
