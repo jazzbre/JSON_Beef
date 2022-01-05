@@ -307,71 +307,71 @@ namespace JSON_Beef.Serialization
 			case typeof(int):
 				int dest = default;
 				jsonArray.Get<int>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(int8):
 				int8 dest = default;
 				jsonArray.Get<int8>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(int16):
 				int16 dest = default;
 				jsonArray.Get<int16>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(int32):
 				int32 dest = default;
 				jsonArray.Get<int32>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(int64):
 				int64 dest = default;
 				jsonArray.Get<int64>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(uint):
 				uint dest = default;
 				jsonArray.Get<uint>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(uint8):
 				uint8 dest = default;
 				jsonArray.Get<uint8>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(uint16):
 				uint16 dest = default;
 				jsonArray.Get<uint16>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(uint32):
 				uint32 dest = default;
 				jsonArray.Get<uint32>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(uint64):
 				uint32 dest = default;
 				jsonArray.Get<uint32>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(char8):
 				char8 dest = default;
 				jsonArray.Get<char8>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(char16):
 				char16 dest = default;
 				jsonArray.Get<char16>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(char32):
 				char32 dest = default;
 				jsonArray.Get<char32>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(float):
 				float dest = default;
 				jsonArray.Get<float>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(double):
 				double dest = default;
 				jsonArray.Get<double>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(bool):
 				bool dest = default;
 				jsonArray.Get<bool>(i, ref dest);
-				addMethod.Invoke(obj, dest);
+				addMethod.Invoke(obj, dest).IgnoreError();
 			case typeof(String):
 				String dest = default;
 				jsonArray.Get<String>(i, ref dest);
-				addMethod.Invoke(obj, new String(dest));
+				addMethod.Invoke(obj, new String(dest)).IgnoreError();
 			}
 
 			return .Ok;
