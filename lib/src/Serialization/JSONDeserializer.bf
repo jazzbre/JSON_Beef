@@ -226,6 +226,17 @@ namespace JSON_Beef.Serialization
 			return null;
 		}
 
+		private static Result<MethodInfo> FindMethod(Type type, StringView name)
+		{
+			for (let methodInfo in type.GetMethods(.Instance | .Public))
+			{
+				if (methodInfo.Name == name)
+				{
+					return .Ok(methodInfo);
+				}
+			}
+			return .Err(default);
+		}
 
 		// The object corresponds to the jsonArray
 		// e.g.: jsonArray => [["1", "2", "3"], ["1", "2"]] -- object => List<List<String>>
@@ -239,7 +250,11 @@ namespace JSON_Beef.Serialization
 			}
 
 			let type = object.GetType() as SpecializedGenericType;
-			let addMethod = Try!(type.GetMethod("Add"));
+			MethodInfo addMethod = default;
+			if (FindMethod(type, "Add") case .Ok(let newVal))
+				addMethod = newVal;
+			else
+				return .Err(.CANNOT_INSTANTIATE_OBJECT_FIELDS);
 			var paramType = type.GetGenericArg(0);
 
 			if (paramType.IsStruct)
