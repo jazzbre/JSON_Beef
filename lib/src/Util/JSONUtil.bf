@@ -271,6 +271,10 @@ namespace JSON_Beef.Util
 				var testClassName = scope String();
 				for (let testType in Type.Types)
 				{
+					if (testType is System.Reflection.ArrayType)
+					{
+						continue;
+					}
 					if (!testType.IsObject || !testType.IsSubtypeOf(objectBaseType) || testType.InstanceSize == 0)
 					{
 						continue;
