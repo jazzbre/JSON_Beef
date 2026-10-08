@@ -244,6 +244,7 @@ namespace JSON_Beef.Serialization
 		// e.g.: jsonArray => [{"Key": "Value"}] -- object => List<CustomObject>
 		private static Result<void, DESERIALIZE_ERRORS> DeserializeArray(JSONArray jsonArray, Object object)
 		{
+			var listObject = object;
 			if (!TypeChecker.IsTypeList(object))
 			{
 				return .Err(.CANNOT_ASSIGN_LIST_TO_OBJECT);
@@ -259,7 +260,7 @@ namespace JSON_Beef.Serialization
 
 			if (paramType.IsStruct)
 			{
-				var list = (List<int>*)&object;
+				var list = (List<int>*)&listObject;
 				(*list).Count = jsonArray.Count;
 			}
 
@@ -304,7 +305,7 @@ namespace JSON_Beef.Serialization
 				}
 				else if (paramType.IsStruct)
 				{
-					var list = (List<int>*)&object;
+					var list = (List<int>*)&listObject;
 					var first = (uint8*)&((*list)[0]);
 					var jsonObject = scope JSONObject();
 					jsonArray.Get<JSONObject>(i, ref jsonObject);
